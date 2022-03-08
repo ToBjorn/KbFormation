@@ -1,4 +1,4 @@
-# Step0 : My Homemade GenServer
+# Step 0 - My Homemade GenServer
 
 ## Usage
 Bash
