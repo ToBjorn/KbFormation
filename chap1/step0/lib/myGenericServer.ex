@@ -6,30 +6,32 @@ defmodule MyGenericServer do
   defp loop({callback_module, server_state}) do
     receive do
       {:get, caller} ->
-        {amount, _} = apply(callback_module, :handle_call, [:get, server_state])
-        send(caller, {:get, amount})
-        loop({callback_module, amount})
-      {:credit, value} ->
-        amount = apply(callback_module, :handle_cast, [{:credit, value}, server_state])
-        loop({callback_module, amount})
-      {:debit, value} ->
-        amount = apply(callback_module, :handle_cast, [{:debit, value}, server_state])
-        loop({callback_module, amount})
+        send(caller, {:get, {callback_module, server_state}})
+        loop({callback_module, server_state})
+      {:set, state} ->
+        loop({callback_module, state})
     end
   end
 
+  defp getState(process_pid) do
+    send(process_pid, {:get, self()})
+    receive do
+      {:get, value} ->
+        value
+      end
+  end
+
   def cast(process_pid, request) do
-    send(process_pid, request)
+    {callback_module, state} = getState(process_pid)
+    amount = apply(callback_module, :handle_cast, [request, state])
+    send(process_pid, {:set, amount})
     :ok
   end
 
   def call(process_pid, request) do
-    send(process_pid, {request, self()})
-    receive do
-      {:get, value} ->
-        value
-    end
-
+    {callback_module, state} = getState(process_pid)
+    {amount, _} = apply(callback_module, :handle_call, [request, state])
+    amount
   end
 
   def start_link(callback_module, server_initial_state) do
