@@ -3,7 +3,6 @@
 ## Usage
 Bash
 ```bash
-mix compile
 iex -S mix
 ```
 
