@@ -1,57 +1,59 @@
 defmodule Server.Database do
   use GenServer
 
-  def start_link(database_name) do
-    GenServer.start_link(__MODULE__, database_name[:name], database_name)
+  def start_link(_args) do
+    GenServer.start_link(__MODULE__, :nil, name: __MODULE__)
   end
 
-  @impl true
-  def init(name) do
-    :ets.new(name, [:named_table])
-    {:ok, name}
+  def init(_param) do
+    {:ok, :ets.new(__MODULE__, [:private])}
   end
 
-  defp get(name, key) do
-    case :ets.lookup(name, key) do
-      [] -> :notFound
-      x when is_list(x) -> x
+  def pid do
+    __MODULE__
+  end
+
+  def get(key) do
+    GenServer.call(pid(), {:get, key})
+  end
+
+  def update(key, value) do
+    GenServer.call(pid(), {:update, {key, value}})
+  end
+
+  def post(key, value) do
+    GenServer.call(pid(), {:post, {key, value}})
+  end
+
+  def delete(key) do
+    GenServer.cast(pid(), {:delete, key})
+  end
+
+  def handle_call({:post,  {key, value}}, _from, state) do
+    case :ets.insert_new(state, {key, value}) do
+      true -> {:reply, :created, state}
+      false -> {:reply, :conflict, state}
     end
   end
 
-  defp update(name, {key, value}) do
-    case get(name, key) do
-      [] -> :notFound
-      x when is_list(x) -> :ets.insert(name, {key, value})
+  def handle_call({:update,  {key, value}}, _from, state) do
+    case handle_call({:get, key}, self(), state) do
+      {_, :notFound, _} -> {:reply, :notFound, state}
+      {_, x, _} when is_list(x) ->
+        :ets.insert(state, {key, value})
+        {:reply, :modified, state}
     end
   end
 
-  defp delete(name, key) do
-    :ets.delete(name, key)
-  end
-
-  defp post(name, value) do
-    case :ets.insert_new(name, value) do
-      true -> :created
-      false -> :conflict
+  def handle_call({:get, key}, _from, state) do
+    case :ets.lookup(state, key) do
+      [] -> {:reply, :notFound, state}
+      x when is_list(x) -> {:reply, x, state}
     end
   end
 
-  @impl true
-  def handle_call(instruction, _from, name) do
-    case instruction do
-      {:get, key} -> {:reply, get(name, key), name}
-      {:update, value} when is_tuple(value) -> {:reply, update(name, value), name}
-      {:post, value} when is_tuple(value) -> {:reply, post(name, value), name}
-      _ -> raise "Instruction not found"
-    end
-  end
-
-  @impl true
-  def handle_cast(instruction, name) do
-    case instruction do
-      {:delete, value} ->
-        delete(name, value)
-        {:noreply, name}
-    end
+  def handle_cast({:delete, key}, state) do
+    :ets.delete(state, key)
+    {:noreply, state}
   end
 end
