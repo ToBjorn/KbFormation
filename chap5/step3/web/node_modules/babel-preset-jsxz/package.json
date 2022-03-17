@@ -1,0 +1,13 @@
+{
+  "name": "babel-preset-jsxz",
+  "version": "1.0.1",
+  "description": "Babel preset for JSXZ: wrapper around transform-jsxz",
+  "author": "Arnaud Wetzel <arnaud.wetzel+npm@gmail.com>",
+  "homepage": "https://github.com/awetzel/babel-plugin-transform-jsxz",
+  "license": "MIT",
+  "repository": "https://github.com/awetzel/babel-preset-jsxz",
+  "main": "src/index.js",
+  "dependencies": {
+    "babel-plugin-transform-jsxz": "^1.0.0"
+  }
+}
