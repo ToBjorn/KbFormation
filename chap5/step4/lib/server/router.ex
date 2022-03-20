@@ -49,7 +49,8 @@ defmodule Server.Router do
 
   delete "/api/order/:name" do
     Server.Database.delete(conn.path_params["name"])
-    send_resp(conn, 200, "deleted")
+    :timer.sleep(2000)
+    send_resp(conn, 200, "")
   end
 
   put "/api/orders" do

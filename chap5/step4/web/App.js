@@ -86,36 +86,43 @@ var Layout = createReactClass({
   // },
   getInitialState() {
     return {
-    };
+      modal: null,
+    }
+  },
+  loader(promise) {
+    this.modal({type: "loading"});
+    return promise.then(() => {
+      this.setState({modal: null});
+    })
   },
   modal(spec) {
-    console.log("call in modal function")
     this.setState({
       modal: {
         ...spec, callback: (res) => {
           this.setState({ modal: null }, () => {
-            if (spec.callback) spec.callback(res)
+            if (spec.callback)
+              spec.callback(res)
           })
         }
       }
     })
   },
   render() {
-    this.state = this.getInitialState();
-    var modal_component = {
-      'delete': (props) => <DeleteModal {...props} />
-    }[this.state.modal && this.state.modal.type];
-    modal_component = modal_component && modal_component(this.state.modal)
+    if (this.state.modal) {
+      var modal_component = {
+        'delete': (props) => <DeleteModal {...props} />,
+        'loading': (props) => <LoadingModal {...props} />
+      }[this.state.modal && this.state.modal.type];
+      modal_component = modal_component && modal_component(this.state.modal)
+    }
     var props = {
-      ...this.props, modal: this.modal
+      ...this.props, modal: this.modal, loader: this.loader
     }
     return <JSXZ in="orders" sel=".layout">
+      <Z sel=".modal-wrapper" className={cn(classNameZ, { 'hidden': !modal_component })}>
+        {modal_component}
+      </Z>
       <Z sel=".layout-container">
-        <JSXZ in="delete-modal" sel=".container">
-          <Z sel=".modal-wrapper" className={cn(classNameZ, { 'hidden': !modal_component })}>
-            {modal_component}
-          </Z>
-        </JSXZ>
         <this.props.Child {...props} />
       </Z>
     </JSXZ>
@@ -131,6 +138,12 @@ var Header = createReactClass({
     </JSXZ>
   }
 })
+
+function arrayRemove(arr, value) {
+  return arr.filter(function (ele) {
+    return ele[0] != value;
+  });
+}
 
 var Orders = createReactClass({
   statics: {
@@ -151,13 +164,16 @@ var Orders = createReactClass({
             <br />Payment method: {order[1].custom.shipping_method_ui}
           </Z>
           <Z sel=".buttondelete" onClick={() => (
-            console.log("call this onClick"),
             this.props.modal({
-            type: 'delete',
-            callback: (value) => {
-              //HTTP.delete("/order/" + order[0]);
-            }
-          }))}><ChildrenZ /></Z>
+              type: 'delete',
+              callback: (value) => {
+                if (value) {
+                  this.props.loader(HTTP.delete("/api/order/" + order[0])).then(() => {
+                    this.props.orders.value = arrayRemove(this.props.orders.value, order[0]);
+                    GoTo("orders")});
+                }
+              }
+            }))}><ChildrenZ /></Z>
         </JSXZ>))}
       </Z>
     </JSXZ>
@@ -209,8 +225,16 @@ var ErrorPage = createReactClass({
 
 var DeleteModal = createReactClass({
   render() {
-    console.log("aaaaaaa");
     return <JSXZ in="delete-modal" sel=".modal-wrapper">
+      <Z sel=".declinebutton" onClick={() => this.props.callback(false)}><ChildrenZ /></Z>
+      <Z sel=".acceptbutton" onClick={() => this.props.callback(true)}><ChildrenZ /></Z>
+    </JSXZ>
+  }
+})
+
+var LoadingModal = createReactClass({
+  render() {
+    return <JSXZ in="loading-modal" sel=".modal-wrapper">
     </JSXZ>
   }
 })
