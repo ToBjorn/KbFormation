@@ -28,5 +28,3 @@ defmodule Riak do
     :httpc.request(:delete, {'#{Riak.url}/buckets/#{bucket}/keys/#{key}', Riak.auth_header()}, [], [])
   end
 end
-
-:httpc.request(:get, {'#{Riak.url}/buckets?buckets=true', Riak.auth_header()}, [], [])

@@ -81,18 +81,16 @@ var routes = {
 }
 
 var Layout = createReactClass({
-  // statics: {
-  //   remoteProps: [remoteProps.delete]
-  // },
   getInitialState() {
     return {
       modal: null,
+      //loader: null
     }
   },
   loader(promise) {
     this.modal({type: "loading"});
     return promise.then(() => {
-      this.setState({modal: null});
+      this.setState({modal: null}); //ça ne sert surement à rien
     })
   },
   modal(spec) {
@@ -257,42 +255,6 @@ var cn = function () {
 
 var browserState = { Child: Child }
 
-function addRemoteProps(props) {
-  return new Promise((resolve, reject) => {
-    var remoteProps = Array.prototype.concat.apply([],
-      props.handlerPath
-        .map((c) => c.remoteProps) // -> [[remoteProps.orders], null]
-        .filter((p) => p) // -> [[remoteProps.orders]]
-    )
-    remoteProps = remoteProps
-      .map((spec_fun) => spec_fun(props)) // [{url: '/api/orders', prop: 'orders'}]
-      .filter((specs) => specs) // get rid of undefined from remoteProps that don't match their dependencies
-      .filter((specs) => !props[specs.prop] || props[specs.prop].url != specs.url) // get rid of remoteProps already resolved with the url
-    if (remoteProps.length == 0)
-      return resolve(props)
-    const promise_mapper = (spec) => {
-      // we want to keep the url in the value resolved by the promise here : spec = {url: '/api/orders', value: ORDERS, prop: 'orders'}
-      return HTTP.get(spec.url).then((res) => { spec.value = res; return spec })
-    }
-
-    const reducer = (acc, spec) => {
-      // spec = url: '/api/orders', value: ORDERS, prop: 'user'}
-      acc[spec.prop] = { url: spec.url, value: spec.value }
-      return acc
-    }
-
-    const promise_array = remoteProps.map(promise_mapper)
-    return Promise.all(promise_array)
-      .then(xs => xs.reduce(reducer, props), reject)
-      .then((p) => {
-        // recursively call remote props, because props computed from
-        // previous queries can give the missing data/props necessary
-        // to define another query
-        return addRemoteProps(p).then(resolve, reject)
-      }, reject)
-  })
-}
-
 var GoTo = (route, params, query) => {
   var qs = Qs.stringify(query)
   var url = routes[route].path(params) + ((qs == '') ? '' : ('?' + qs))
@@ -340,6 +302,42 @@ function onPathChange() {
     }, (res) => {
       ReactDOM.render(<ErrorPage message={"Shit happened"} code={res.http_code} />, document.getElementById('root'))
     })
+}
+
+function addRemoteProps(props) {
+  return new Promise((resolve, reject) => {
+    var remoteProps = Array.prototype.concat.apply([],
+      props.handlerPath
+        .map((c) => c.remoteProps) // -> [[remoteProps.orders], null]
+        .filter((p) => p) // -> [[remoteProps.orders]]
+    )
+    remoteProps = remoteProps
+      .map((spec_fun) => spec_fun(props)) // [{url: '/api/orders', prop: 'orders'}]
+      .filter((specs) => specs) // get rid of undefined from remoteProps that don't match their dependencies
+      .filter((specs) => !props[specs.prop] || props[specs.prop].url != specs.url) // get rid of remoteProps already resolved with the url
+    if (remoteProps.length == 0)
+      return resolve(props)
+    const promise_mapper = (spec) => {
+      // we want to keep the url in the value resolved by the promise here : spec = {url: '/api/orders', value: ORDERS, prop: 'orders'}
+      return HTTP.get(spec.url).then((res) => { spec.value = res; return spec })
+    }
+
+    const reducer = (acc, spec) => {
+      // spec = url: '/api/orders', value: ORDERS, prop: 'user'}
+      acc[spec.prop] = { url: spec.url, value: spec.value }
+      return acc
+    }
+
+    const promise_array = remoteProps.map(promise_mapper)
+    return Promise.all(promise_array)
+      .then(xs => xs.reduce(reducer, props), reject)
+      .then((p) => {
+        // recursively call remote props, because props computed from
+        // previous queries can give the missing data/props necessary
+        // to define another query
+        return addRemoteProps(p).then(resolve, reject)
+      }, reject)
+  })
 }
 
 window.addEventListener("popstate", () => { onPathChange() });
