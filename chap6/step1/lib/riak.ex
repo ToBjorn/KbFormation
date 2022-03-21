@@ -9,7 +9,7 @@ defmodule Riak do
   end
 
   def put(obj) do
-    :httpc.request(:post, {'#{Riak.url}/buckets/tdelapi_orders/keys', Riak.auth_header(), 'application/json', obj}, [], [])
+    :httpc.request(:post, {'#{Riak.url}/buckets/tdelapi_orders/keys/#{obj.key}', Riak.auth_header(), 'application/json', obj}, [], [])
   end
 
   def get do

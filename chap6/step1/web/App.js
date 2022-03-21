@@ -84,23 +84,22 @@ var Layout = createReactClass({
   getInitialState() {
     return {
       modal: null,
-      //loader: null
+      loader: null
     }
   },
   loader(promise) {
-    this.modal({type: "loading"});
-    return promise.then(() => {
-      this.setState({modal: null}); //ça ne sert surement à rien
-    })
+    this.setState({loader: 'loading'})
+    promise.then(() => {
+          this.setState({loader: null, modal: null})
+        })
+    return promise;
   },
   modal(spec) {
     this.setState({
       modal: {
         ...spec, callback: (res) => {
-          this.setState({ modal: null }, () => {
             if (spec.callback)
               spec.callback(res)
-          })
         }
       }
     })
@@ -109,9 +108,11 @@ var Layout = createReactClass({
     if (this.state.modal) {
       var modal_component = {
         'delete': (props) => <DeleteModal {...props} />,
-        'loading': (props) => <LoadingModal {...props} />
       }[this.state.modal && this.state.modal.type];
       modal_component = modal_component && modal_component(this.state.modal)
+    }
+    if (this.state.loader) {
+      var loader_component = <LoadingModal {...props} />
     }
     var props = {
       ...this.props, modal: this.modal, loader: this.loader
@@ -119,6 +120,9 @@ var Layout = createReactClass({
     return <JSXZ in="orders" sel=".layout">
       <Z sel=".modal-wrapper" className={cn(classNameZ, { 'hidden': !modal_component })}>
         {modal_component}
+      </Z>
+      <Z sel=".loader-wrapper" className={cn(classNameZ, { 'hidden': !loader_component })}>
+        {loader_component}
       </Z>
       <Z sel=".layout-container">
         <this.props.Child {...props} />
@@ -168,7 +172,8 @@ var Orders = createReactClass({
                 if (value) {
                   this.props.loader(HTTP.delete("/api/order/" + order[0])).then(() => {
                     this.props.orders.value = arrayRemove(this.props.orders.value, order[0]);
-                    GoTo("orders")});
+                    GoTo("orders")
+                  });
                 }
               }
             }))}><ChildrenZ /></Z>
