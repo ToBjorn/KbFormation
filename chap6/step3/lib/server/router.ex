@@ -10,60 +10,22 @@ defmodule Server.Router do
   end
 
   get "/api/orders" do
-    list = Server.Database.get()
-    |> Enum.map(&Tuple.to_list/1)
-    |> Poison.Encoder.encode(%{})
-    send_resp(conn, 200, list)
+    conn = fetch_query_params(conn)
+    qs = conn.params
+    list = Riak.search("tdelapi_orders_index", qs["query"] || "type:nat_order", [page: qs["page"], rows: qs["rows"], sort: qs["sort"]])
+    send_resp(conn, 200, Poison.encode!(list))
   end
 
   get "/api/order/:order" do
-    case Server.Database.get(conn.path_params["order"]) do
-      [{_, value}] -> send_resp(conn, 200, Poison.Encoder.encode(value, %{}))
-      :notFound -> send_resp(conn, 404, "Where are you ?")
-    end
+    send_resp(conn, 200, Poison.encode!(Riak.get("tdelapi_orders", conn.path_params["order"])))
   end
 
   get _, do: send_file(conn, 200, "priv/static/index.html")
 
-  post "/api/orders" do
-    {:ok, body, conn} = Plug.Conn.read_body(conn, [])
-    x = body
-    |> String.split("&")
-    |> Enum.map(fn arg -> String.split(arg, "=") end)
-    |> Enum.map(fn [key, value] -> {key, value} end)
-
-    case Server.Database.post(x) do
-      :created -> send_resp(conn, 200, "Created")
-      :conflict -> send_resp(conn, 409, "Conflict")
-    end
-  end
-
-  post "/api/orders/search" do
-    params = Plug.Conn.fetch_query_params(conn, [])
-    list = Enum.reduce(params.params, [], fn value, list -> [value] ++ list end)
-    |> Server.Database.search()
-    |> Enum.map(&Tuple.to_list/1)
-    |> Poison.Encoder.encode(%{})
-    send_resp(conn, 200, list)
-  end
-
   delete "/api/order/:name" do
-    Server.Database.delete(conn.path_params["name"])
+    IO.inspect(Riak.delete("tdelapi_orders", conn.path_params["name"]))
     :timer.sleep(2000)
     send_resp(conn, 200, "")
-  end
-
-  put "/api/orders" do
-    {:ok, body, conn} = Plug.Conn.read_body(conn, [])
-    x = body
-    |> String.split("&")
-    |> Enum.map(fn arg -> String.split(arg, "=") end)
-    |> Enum.map(fn [key, value] -> {key, value} end)
-
-    case Server.Database.put(x) do
-      :modified -> send_resp(conn, 200, "modified")
-      :notFound -> send_resp(conn, 404, "Not found")
-    end
   end
 
   match(_, do: send_resp(conn, 404, "Where are you ?"))

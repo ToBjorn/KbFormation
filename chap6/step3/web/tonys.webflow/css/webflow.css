@@ -20,6 +20,29 @@
     -moz-osx-font-smoothing: grayscale
 }
 
+.page-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.pageNext {
+    margin-left: 10px;
+}
+
+.pageCount {
+    margin-left: 10px;
+    position: relative;
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+.pageButtons {
+    display: flex;
+    flex-direction: row;
+}
+
 .w-icon-slider-right:before {
     content: "\e600"
 }

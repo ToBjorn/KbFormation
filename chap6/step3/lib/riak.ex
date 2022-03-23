@@ -10,9 +10,9 @@ defmodule Riak do
 
   def post(obj) do
     case obj do
-      {key, _} -> :httpc.request(:post, {'#{Riak.url}/buckets/tdelapi_orders/keys/#{key}', Riak.auth_header(), 'application/json', obj}, [], [])
-      obj when is_map(obj) ->  :httpc.request(:post, {'#{Riak.url}/buckets/tdelapi_orders/keys/#{obj["id"]}', Riak.auth_header(), 'application/json', Poison.Encoder.encode(obj, %{})}, [], [])
-      _ -> :httpc.request(:post, {'#{Riak.url}/buckets/tdelapi_orders/keys', Riak.auth_header(), 'application/json', obj}, [], [])
+      {key, _} -> :httpc.request(:put, {'#{Riak.url}/buckets/tdelapi_orders/keys/#{key}', Riak.auth_header(), 'application/json', obj}, [], [])
+      obj when is_map(obj) -> :httpc.request(:put, {'#{Riak.url}/buckets/tdelapi_orders/keys/#{obj["id"]}', Riak.auth_header(), 'application/json', Poison.encode!(obj)}, [], [])
+      _ -> :httpc.request(:put, {'#{Riak.url}/buckets/tdelapi_orders/keys', Riak.auth_header(), 'application/json', obj}, [], [])
     end
   end
 
@@ -25,7 +25,11 @@ defmodule Riak do
   end
 
   def get(bucket, key) do
-    :httpc.request(:get, {'#{Riak.url}/buckets/#{bucket}/keys/#{key}', Riak.auth_header()}, [], [])
+    {:ok, {{_, _, _message}, _response_headers, body}} = :httpc.request(:get, {'#{Riak.url}/buckets/#{bucket}/keys/#{key}', Riak.auth_header()}, [], [])
+    case body do
+      'not found\n' -> []
+      _ -> Poison.decode!(body)
+    end
   end
 
   def delete(bucket, key) do
@@ -62,6 +66,23 @@ defmodule Riak do
     empty(bucket)
     :httpc.request(:delete, {'#{Riak.url}/buckets/#{bucket}/props', Riak.auth_header()}, [], [])
   end
-end
 
-{:ok, {{'HTTP/1.1', 200, 'OK'}, [{'cache-control', 'max-age=0, private, must-revalidate'}, {'date', 'Tue, 22 Mar 2022 09:12:15 GMT'}, {'server', 'Cowboy'}, {'content-length', '70'}, {'strict-transport-security', 'max-age=31536000; includeSubDomains'}], '{"keys":["SLCp8hEy91a2hpN3TBRIhI2Cajh","Fca611iU90rWXsEVyrEEI8GFeW8"]}'}}
+  def escape(query) do
+    URI.encode(query)
+  end
+
+  def search(index, query, opts \\ []) do
+    {page, _} = Integer.parse(opts[:page] || "1")
+    {rows, _} = Integer.parse(opts[:rows] || "30")
+    page = (page - 1) * rows
+    sort = opts[:sort] || "creation_date_index"
+    query = escape(query)
+    {:ok, {{_, _, _message}, _response_headers, body}} = :httpc.request(:get, {'#{Riak.url}/search/query/#{index}/?wt=json&q=#{query}&start=#{page}&rows=#{rows}&sort=#{sort}%20asc', Riak.auth_header()}, [], [])
+    body = Poison.decode!(body)
+    number = body["response"]["numFound"]
+    case body["response"]["docs"] do
+      :nil -> []
+      _ -> [number, Enum.map(body["response"]["docs"], fn elem -> [hd | _] = elem["id"]; [hd, get("tdelapi_orders", elem["id"])] end)]
+    end
+  end
+end

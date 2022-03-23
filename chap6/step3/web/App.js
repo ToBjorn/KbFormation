@@ -84,22 +84,23 @@ var Layout = createReactClass({
   getInitialState() {
     return {
       modal: null,
-      loader: null
+      loader: null,
+      page: 1
     }
   },
   loader(promise) {
-    this.setState({loader: 'loading'})
+    this.setState({ loader: 'loading' })
     promise.then(() => {
-          this.setState({loader: null, modal: null})
-        })
+      this.setState({ loader: null, modal: null })
+    })
     return promise;
   },
   modal(spec) {
     this.setState({
       modal: {
         ...spec, callback: (res) => {
-            if (spec.callback)
-              spec.callback(res)
+          if (spec.callback)
+            spec.callback(res)
         }
       }
     })
@@ -115,7 +116,7 @@ var Layout = createReactClass({
       var loader_component = <LoadingModal {...props} />
     }
     var props = {
-      ...this.props, modal: this.modal, loader: this.loader
+      ...this.props, modal: this.modal, loader: this.loader, page: this.props.qs["page"] || this.state.page
     }
     return <JSXZ in="orders" sel=".layout">
       <Z sel=".modal-wrapper" className={cn(classNameZ, { 'hidden': !modal_component })}>
@@ -152,9 +153,14 @@ var Orders = createReactClass({
     remoteProps: [remoteProps.orders]
   },
   render() {
-    return <JSXZ in="orders" sel=".container">
+    let reste = parseInt(this.props.orders.value[0]) % 30
+    let nbrPage = parseInt(this.props.orders.value[0]) / 30
+    if (reste > 0) nbrPage++;
+    nbrPage = parseInt(nbrPage)
+
+    return <JSXZ in="orders" sel=".orders-container">
       <Z sel=".collection-item">
-        {this.props.orders.value?.map(order => (<JSXZ in="orders" sel=".table-line">
+        {this.props.orders.value[1]?.map(order => (<JSXZ in="orders" sel=".table-line">
           <Z sel=".blockcommand">{order[1].remoteid}</Z>
           <Z sel=".blockcustomer">{order[1].custom.customer.full_name}</Z>
           <Z sel=".blockaddress">{order[1].custom.shipping_address.street + " " + order[1].custom.shipping_address.postcode + " " + order[1].custom.shipping_address.city}</Z>
@@ -170,14 +176,35 @@ var Orders = createReactClass({
               type: 'delete',
               callback: (value) => {
                 if (value) {
+                  console.log(order[0])
                   this.props.loader(HTTP.delete("/api/order/" + order[0])).then(() => {
-                    this.props.orders.value = arrayRemove(this.props.orders.value, order[0]);
+                    this.props.orders.value[1] = arrayRemove(this.props.orders.value[1], order[0]);
+                    this.props.orders.value[0] = parseInt(this.props.orders.value[0]) - 1
                     GoTo("orders")
                   });
                 }
               }
             }))}><ChildrenZ /></Z>
         </JSXZ>))}
+      </Z>
+      <Z sel=".page-container">
+        <JSXZ in="orders" sel=".pageButtons">
+          <Z sel=".pagePrev" onClick={() => {
+            if (parseInt(this.props.page) > 1) {
+              if (parseInt(this.props.page) == 2) {
+                GoTo("orders")
+              } else {
+                GoTo("orders", "", { page: parseInt(this.props.page) - 1 });
+              }
+            }
+          }}><ChildrenZ /></Z>
+          <Z sel=".pageNext" onClick={() => {
+            if (parseInt(this.props.page) < nbrPage) {
+              GoTo("orders", "", { page: parseInt(this.props.page) + 1 });
+            }
+          }}><ChildrenZ /></Z>
+          <Z sel=".pageCount">{parseInt(this.props.page)}/{nbrPage}</Z>
+        </JSXZ>
       </Z>
     </JSXZ>
   }
