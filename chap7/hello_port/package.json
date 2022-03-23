@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@kbrw/node_erlastic": "^0.1.2",
+    "node_erlastic": "^0.1.0"
+  }
+}
