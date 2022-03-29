@@ -26,7 +26,7 @@ defmodule Tutokbrwstack.MixProject do
       {:reaxt, tag: "v4.0.2", github: "kbrw/reaxt"},
       {:poison, "~> 5.0"},
       {:plug_cowboy, "~> 2.4"},
-      {:exfsm, git: "https://github.com/kbrw/exfsm.git"}
+      {:exfsm, git: "https://github.com/kbrw/exfsm.git"},
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]

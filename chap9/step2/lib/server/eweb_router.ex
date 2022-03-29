@@ -31,12 +31,47 @@ end
 defmodule Server.EwebRouter do
   use Ewebmachine.Builder.Resources
   if Mix.env == :dev, do: plug Ewebmachine.Plug.Debug
+  plug(Plug.Static, at: "/public", from: :tutokbrwstack)
   resources_plugs(error_forwarding: "/error/:status", nomatch_404: true)
   plug(ErrorRoutes)
 
-  resource "/hello/:name" do %{name: name} after
-    content_types_provided do: ['text/html': :to_html]
-    defh to_html, do: "<html><h1>Hello #{state.name}</h1></html>"
+  resource "/api/orders" do %{} after
+    allowed_methods do: ["GET"]
+    content_types_provided(do: ["application/json": :to_json])
+    defh to_json do
+      conn = fetch_query_params(conn)
+      qs = conn.params
+
+      list =
+        Riak.search("tdelapi_orders_index", qs["query"] || "type:nat_order",
+        page: qs["page"],
+        rows: qs["rows"],
+        sort: qs["sort"]
+        )
+
+        wrap_response(Poison.encode!(list), conn, state)
+      end
+  end
+
+  resource "/api/order/:name" do %{name: name} after
+    allowed_methods do: ["GET","DELETE"]
+    content_types_provided(do: ["application/json": :to_json])
+    delete_resource do: Riak.delete("tdelapi_orders", state.name)
+    defh to_json do
+      wrap_response(Poison.encode!(Riak.get("tdelapi_orders", state.name)), conn, state)
+    end
+  end
+
+  resource "/api/order/:name/pay" do %{name: name} after
+    allowed_methods do: ["POST"]
+
+    process_post do
+      order = Riak.get("tdelapi_orders", state.name)
+      Server.DynamicSupervisor.start_child(order["id"])
+      {:updated, order} = Server.Worker.call(order["id"], order)
+      Riak.post(order)
+      {true, %{conn | resp_body: Poison.encode!(order)}, state}
+    end
   end
 
   resource "/" do %{} after
@@ -51,9 +86,7 @@ defmodule Server.EwebRouter do
       data = %{path: conn.request_path, cookies: conn.cookies, query: conn.params}
       render = Reaxt.render!(:app, data, 30_000)
       conn = put_resp_header(conn, "content-type", "text/html;charset=utf-8")
-      {layout(render), conn, state}
+      wrap_response(layout(render), conn, state)
     end
   end
-
-  plug(Plug.Static, at: "/public", from: :tutokbrwstack)
 end

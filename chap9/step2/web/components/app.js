@@ -263,7 +263,7 @@ var ErrorPage = createReactClass({
 var DeleteModal = createReactClass({
   render() {
     return <JSXZ in="delete-modal" sel=".modal-wrapper">
-      <Z sel=".declinebutton" onClick={() => this.props.callback(false)}><ChildrenZ /></Z>
+      <Z sel=".declinebutton" onClick={() => this.props.modal(null)}><ChildrenZ /></Z>
       <Z sel=".acceptbutton" onClick={() => this.props.callback(true)}><ChildrenZ /></Z>
     </JSXZ>
   }
